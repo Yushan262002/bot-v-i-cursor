@@ -1,0 +1,100 @@
+========================================
+HUONG DAN SU DUNG BOT - 3 BUOC DON GIAN
+========================================
+
+BUOC 1: CAI DEPENDENCIES
+-------------------------
+Mo PowerShell trong thu muc bot, chay:
+
+    pip install flask ccxt python-dotenv
+
+
+BUOC 2: TAO FILE .ENV
+----------------------
+1. Copy file .env.example thanh .env:
+
+    copy .env.example .env
+
+2. Mo file .env, sua credentials:
+
+    OKX_API_KEY=pk-xxxxx-xxxxx        <- API key that
+    OKX_API_SECRET=sk-xxxxx-xxxxx     <- Secret that
+    OKX_API_PASSWORD=your_password    <- Password that
+
+3. Luu lai (Ctrl+S)
+
+
+BUOC 3: CHAY BOT
+-----------------
+    python bot.py
+
+
+========================================
+DA FIX CAC LOI
+========================================
+
+✅ Loi NoneType (crash khi order.filled = None)
+✅ Loi balance check sai
+✅ Loi vuot max order amount (PEPE, DOGE...)
+✅ Loi monitor loop crash
+✅ Loi position cleanup
+✅ Loi race condition (dong/mo position)
+✅ Them order verify sau khi dat lenh
+
+
+========================================
+CAU HINH (trong bot.py)
+========================================
+
+LEVERAGE = 20              <- Leverage (10-20)
+MARGIN_USDT = 6            <- Margin moi lenh (3-10 USDT)
+SL_PCT = 0.002             <- Stop Loss 0.2%
+TP1_PCT = 0.003            <- Take Profit 1: 0.3%
+TP2_PCT = 0.005            <- Take Profit 2: 0.5%
+
+
+========================================
+LOI THUONG GAP
+========================================
+
+Loi: "ModuleNotFoundError: No module named 'flask'"
+Fix: pip install flask ccxt python-dotenv
+
+Loi: "KeyError: 'OKX_API_KEY'"
+Fix: Kiem tra file .env ton tai va co du credentials
+
+Loi: "ccxt.AuthenticationError"
+Fix: API credentials sai, kiem tra lai .env
+
+Loi: "Port 5000 already in use"
+Fix: Doi port trong bot.py dong cuoi: app.run(port=5001)
+
+
+========================================
+KIEM TRA BOT HOAT DONG
+========================================
+
+Sau khi chay bot, ban se thay:
+
+✅ Tai 500 thi truong.
+✅ Da bat Hedge Mode (long_short_mode).
+🌐 Bot dang chay tai http://127.0.0.1:5000
+✅ Da fix tat ca loi...
+
+Neu thay cac dong nay = Bot CHAY THANH CONG!
+
+
+========================================
+HO TRO
+========================================
+
+Neu gap loi:
+1. Kiem tra file bot.log
+2. Copy error message
+3. Google hoac hoi support
+
+Xem log realtime:
+    Get-Content bot.log -Wait -Tail 20
+
+
+========================================
