@@ -1,0 +1,94 @@
+========================================
+HUONG DAN CHAY BOT - DOUBLE CLICK THOI!
+========================================
+
+BUOC 1: CAI DEPENDENCIES
+-------------------------
+Double-click file: 0_install_dependencies.bat
+
+Doi cho cai xong (khoang 1-2 phut)
+
+
+BUOC 2: TU DONG FIX LOI
+------------------------
+Double-click file: 1_quick_fix.bat
+
+Tool nay se:
+- Kiem tra Python
+- Kiem tra dependencies
+- Tao file .env neu chua co
+- Kiem tra syntax bot
+
+
+BUOC 3: CAP NHAT FILE .ENV
+---------------------------
+Mo file .env (click phai > Edit)
+
+Sua noi dung:
+  OKX_API_KEY=your_api_key_here         <- Sua thanh API key that
+  OKX_API_SECRET=your_secret_here       <- Sua thanh secret that
+  OKX_API_PASSWORD=your_password_here   <- Sua thanh password that
+
+Luu lai (Ctrl+S)
+
+
+BUOC 4 (TUY CHON): DEBUG
+-------------------------
+Neu muon kiem tra chi tiet:
+Double-click file: 2_debug_bot.bat
+
+
+BUOC 5: CHAY BOT!
+------------------
+Double-click file: 3_run_bot.bat
+
+Bot se chay!
+
+
+LOI THUONG GAP:
+===============
+
+Loi: "python is not recognized"
+-> Chua cai Python
+-> Download: https://www.python.org/downloads/
+-> Tick "Add Python to PATH" khi cai
+
+Loi: "ModuleNotFoundError"
+-> Chay lai file: 0_install_dependencies.bat
+
+Loi: "File .env not found"
+-> Chay file: 1_quick_fix.bat
+-> Tool se tu tao file .env mau
+-> Sau do sua file .env voi API that
+
+Loi: "Authentication error"
+-> API credentials sai
+-> Kiem tra lai file .env
+-> Kiem tra API key tren OKX con hoat dong khong
+
+Loi: Bot crash khong ro nguyen nhan
+-> Chay file: 2_debug_bot.bat
+-> Copy toan bo output va gui cho support
+
+
+HO TRO:
+=======
+Neu van loi, chup man hinh va gui keo:
+1. Output cua file: 2_debug_bot.bat
+2. Noi dung file bot.log (neu co)
+3. Screenshot loi khi chay bot
+
+
+CHECKLIST TRUOC KHI CHAY:
+==========================
+[ ] Python 3.8+ da cai
+[ ] Da chay 0_install_dependencies.bat
+[ ] File .env ton tai
+[ ] File .env co API credentials THAT (khong phai "your_api_key_here")
+[ ] API key tren OKX con hoat dong
+[ ] API key co quyen TRADE
+
+
+========================================
+Good luck!
+========================================

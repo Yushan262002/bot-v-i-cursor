@@ -1,0 +1,108 @@
+========================================
+GIAI QUYET LOI "python quick_fix.py"
+========================================
+
+LOI CUA BAN:
+------------
+File "...\python quick_fix.py", line 1
+    (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF'
+                                                          ^
+SyntaxError: invalid decimal literal
+
+
+NGUYEN NHAN:
+------------
+1. File quick_fix.py bi corrupt (co noi dung git command thay vi Python code)
+2. Cach chay SAI: "python quick_fix.py" trong path
+
+
+GIAI PHAP:
+----------
+
+CACH 1: DUNG FILE .BAT (DE NHAT!)
+===================================
+1. Copy cac file .bat tu /workspace ve thu muc bot cua ban:
+   - 0_install_dependencies.bat
+   - 1_quick_fix.bat
+   - 2_debug_bot.bat
+   - 3_run_bot.bat
+
+2. Copy file quick_fix.py MOI (da fix) ve thu muc bot
+
+3. Double-click file: 1_quick_fix.bat
+
+
+CACH 2: CHAY BANG TAY
+======================
+1. Mo PowerShell trong thu muc bot (Shift + Right-click > Open PowerShell)
+
+2. Copy file quick_fix.py moi tu /workspace:
+   
+   Copy-Item "\\path\\to\\workspace\\quick_fix.py" -Destination "." -Force
+
+3. Chay:
+   
+   python quick_fix.py
+
+   (KHONG co "python" trong path!)
+
+
+CACH 3: CHAY TRUC TIEP BOT (BO QUA FIX)
+========================================
+1. Copy file bot_fixed_clean.py tu /workspace ve thu muc bot
+
+2. Doi ten thanh bot.py:
+   
+   Rename-Item bot_fixed_clean.py bot.py
+
+3. Chay:
+   
+   python bot.py
+
+
+KIEM TRA FILE .ENV:
+===================
+1. Kiem tra file .env ton tai:
+   
+   dir .env
+
+2. Neu chua co, tao file .env voi noi dung:
+
+OKX_API_KEY=your_actual_api_key_here
+OKX_API_SECRET=your_actual_secret_here
+OKX_API_PASSWORD=your_actual_password_here
+
+3. Thay "your_actual_..." bang credentials THAT tu OKX
+
+
+KIEM TRA DEPENDENCIES:
+======================
+Chay:
+
+pip install flask ccxt python-dotenv
+
+
+NEU VAN LOI:
+============
+Chay DEBUG de xem chi tiet:
+
+python debug_bot.py
+
+Copy toan bo output va gui cho toi!
+
+
+========================================
+FILES CAN COPY TU /WORKSPACE:
+========================================
+- bot_fixed_clean.py      <- Bot da fix (QUAN TRONG!)
+- quick_fix.py             <- Tool tu dong fix
+- debug_bot.py             <- Tool debug
+- run_bot_safe.py          <- Wrapper chay bot an toan
+- requirements.txt         <- Danh sach dependencies
+- 0_install_dependencies.bat  <- Auto cai dependencies
+- 1_quick_fix.bat          <- Auto fix
+- 2_debug_bot.bat          <- Auto debug
+- 3_run_bot.bat            <- Auto chay bot
+
+
+========================================
