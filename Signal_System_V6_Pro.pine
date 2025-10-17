@@ -1,0 +1,542 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © traderschatroom88 - Enhanced Signal System V6 Pro
+
+//@version=5
+indicator('Signal System V6 Pro - Enhanced', shorttitle='Signal V6 Pro', overlay=true, max_labels_count=500, max_lines_count=500, max_boxes_count=500)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📊 SIGNAL SYSTEM SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group_signal = "🎯 Signal System"
+sensitivity = input.float(5, title='Signal Sensitivity', step=.5, group=group_signal, tooltip="Lower = more sensitive, more signals\nHigher = less sensitive, fewer signals")
+volatility_period = input.int(10, title='Volatility Period (ATR)', group=group_signal)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🛡️ TREND FILTER SETTINGS - Khắc phục: "Không có bộ lọc trend"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group_trend = "🛡️ Trend Filter (Anti-Whipsaw)"
+enable_trend_filter = input.bool(true, title='Enable Trend Filter', group=group_trend, tooltip="Filter signals to trade with the trend only")
+trend_filter_type = input.string('EMA', title='Trend Filter Type', options=['EMA', 'Supertrend', 'Both'], group=group_trend)
+
+// EMA Trend Filter
+ema_length = input.int(50, title='EMA Length', group=group_trend)
+ema_trend = ta.ema(close, ema_length)
+
+// Supertrend Filter
+supertrend_period = input.int(10, title='Supertrend Period', group=group_trend)
+supertrend_multiplier = input.float(3.0, title='Supertrend Multiplier', group=group_trend)
+
+[supertrend, direction] = ta.supertrend(supertrend_multiplier, supertrend_period)
+is_uptrend_super = direction < 0
+is_downtrend_super = direction > 0
+
+// Combined Trend Logic
+is_uptrend_ema = close > ema_trend
+is_downtrend_ema = close < ema_trend
+
+is_uptrend = trend_filter_type == 'EMA' ? is_uptrend_ema : 
+             trend_filter_type == 'Supertrend' ? is_uptrend_super : 
+             is_uptrend_ema and is_uptrend_super
+
+is_downtrend = trend_filter_type == 'EMA' ? is_downtrend_ema : 
+               trend_filter_type == 'Supertrend' ? is_downtrend_super : 
+               is_downtrend_ema and is_downtrend_super
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📉 ADX FILTER - Khắc phục: "Tín hiệu muộn trong sideway"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group_adx = "📉 ADX Filter (Avoid Sideway)"
+enable_adx_filter = input.bool(true, title='Enable ADX Filter', group=group_adx, tooltip="Only trade when trend strength is sufficient")
+adx_length = input.int(14, title='ADX Length', group=group_adx)
+adx_threshold = input.float(20, title='ADX Threshold', group=group_adx, tooltip="ADX > threshold = trending market\nADX < threshold = ranging market (avoid)")
+
+// ADX Calculation
+[diPlus, diMinus, adx] = ta.dmi(adx_length, adx_length)
+is_trending = adx > adx_threshold
+is_strong_trend = adx > adx_threshold * 1.5
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🌊 VOLATILITY FILTER - Khắc phục: "Whipsaw trong biến động cao"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group_vol = "🌊 Volatility Filter"
+enable_volatility_filter = input.bool(true, title='Enable Volatility Filter', group=group_vol, tooltip="Avoid extreme volatility periods")
+volatility_threshold_low = input.float(0.5, title='Min Volatility (ATR multiplier)', group=group_vol, tooltip="Skip signals if volatility too low")
+volatility_threshold_high = input.float(3.0, title='Max Volatility (ATR multiplier)', group=group_vol, tooltip="Skip signals if volatility too high (whipsaw risk)")
+
+// Volatility Calculation
+atr = ta.atr(volatility_period)
+atr_ma = ta.sma(atr, 20)
+volatility_ratio = atr / atr_ma
+
+is_normal_volatility = volatility_ratio >= volatility_threshold_low and volatility_ratio <= volatility_threshold_high
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 💰 RISK MANAGEMENT - Khắc phục: "Risk/Reward không rõ ràng"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group_risk = "💰 Risk Management"
+show_risk_levels = input.bool(true, title='Show Stop Loss & Take Profit', group=group_risk)
+stop_loss_atr = input.float(2.0, title='Stop Loss (ATR multiplier)', group=group_risk, tooltip="Stop Loss distance from entry")
+take_profit_atr = input.float(4.0, title='Take Profit (ATR multiplier)', group=group_risk, tooltip="Take Profit distance from entry\nDefault 2:1 Risk/Reward")
+use_trailing_stop = input.bool(true, title='Use Trailing Stop', group=group_risk)
+trailing_activation_atr = input.float(2.0, title='Trailing Activation (ATR)', group=group_risk, tooltip="Start trailing after this profit")
+trailing_distance_atr = input.float(1.5, title='Trailing Distance (ATR)', group=group_risk)
+
+// Risk/Reward Ratio
+risk_reward_ratio = take_profit_atr / stop_loss_atr
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🎨 VISUAL SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group_visual = "🎨 Visual Settings"
+show_signals = input.bool(true, title='Show Entry Signals', group=group_visual)
+show_signal_line = input.bool(true, title='Show Signal Line', group=group_visual)
+show_trend_filter_line = input.bool(true, title='Show Trend Filter Line', group=group_visual)
+show_dashboard = input.bool(true, title='Show Info Dashboard', group=group_visual)
+
+color_long = input.color(#00ff00, title='Long Color', group=group_visual, inline='col1')
+color_short = input.color(#ff0000, title='Short Color', group=group_visual, inline='col1')
+color_signal_line = input.color(#2962FF, title='Signal Line Color', group=group_visual, inline='col2')
+color_trend_line = input.color(#FF6D00, title='Trend Line Color', group=group_visual, inline='col2')
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔧 CORE SIGNAL CALCULATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+src = close
+xATR = ta.atr(volatility_period)
+nLoss = sensitivity * xATR
+
+// Signal Line Calculation (Trailing Stop Logic)
+xSignalLine = 0.0
+iff_1 = src > nz(xSignalLine[1], 0) ? src - nLoss : src + nLoss
+iff_2 = src < nz(xSignalLine[1], 0) and src[1] < nz(xSignalLine[1], 0) ? math.min(nz(xSignalLine[1]), src + nLoss) : iff_1
+xSignalLine := src > nz(xSignalLine[1], 0) and src[1] > nz(xSignalLine[1], 0) ? math.max(nz(xSignalLine[1]), src - nLoss) : iff_2
+
+// Position Detection
+pos = 0
+iff_3 = src[1] > nz(xSignalLine[1], 0) and src < nz(xSignalLine[1], 0) ? -1 : nz(pos[1], 0)
+pos := src[1] < nz(xSignalLine[1], 0) and src > nz(xSignalLine[1], 0) ? 1 : iff_3
+
+// Basic Crossover Signals
+basic_long_signal = ta.crossover(src, xSignalLine)
+basic_short_signal = ta.crossunder(src, xSignalLine)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ✅ FILTERED SIGNALS (với tất cả bộ lọc)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Trend Filter Check
+trend_ok_long = enable_trend_filter ? is_uptrend : true
+trend_ok_short = enable_trend_filter ? is_downtrend : true
+
+// ADX Filter Check
+adx_ok = enable_adx_filter ? is_trending : true
+
+// Volatility Filter Check
+vol_ok = enable_volatility_filter ? is_normal_volatility : true
+
+// Final Filtered Signals
+long_signal = basic_long_signal and trend_ok_long and adx_ok and vol_ok
+short_signal = basic_short_signal and trend_ok_short and adx_ok and vol_ok
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📍 STOP LOSS & TAKE PROFIT CALCULATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var float entry_price = na
+var float stop_loss = na
+var float take_profit = na
+var float trailing_stop = na
+var bool in_long_position = false
+var bool in_short_position = false
+var int bars_in_trade = 0
+
+// Entry Logic
+if long_signal
+    entry_price := close
+    stop_loss := entry_price - (atr * stop_loss_atr)
+    take_profit := entry_price + (atr * take_profit_atr)
+    trailing_stop := na
+    in_long_position := true
+    in_short_position := false
+    bars_in_trade := 0
+
+if short_signal
+    entry_price := close
+    stop_loss := entry_price + (atr * stop_loss_atr)
+    take_profit := entry_price - (atr * take_profit_atr)
+    trailing_stop := na
+    in_short_position := true
+    in_long_position := false
+    bars_in_trade := 0
+
+// Trailing Stop Logic for Long
+if in_long_position
+    bars_in_trade += 1
+    profit = close - entry_price
+    
+    // Activate trailing stop when profit threshold reached
+    if use_trailing_stop and profit >= (atr * trailing_activation_atr)
+        new_trailing = close - (atr * trailing_distance_atr)
+        trailing_stop := na(trailing_stop) ? new_trailing : math.max(trailing_stop, new_trailing)
+    
+    // Exit conditions
+    hit_stop = close <= (use_trailing_stop and not na(trailing_stop) ? trailing_stop : stop_loss)
+    hit_target = close >= take_profit
+    
+    if hit_stop or hit_target
+        in_long_position := false
+        entry_price := na
+        stop_loss := na
+        take_profit := na
+        trailing_stop := na
+
+// Trailing Stop Logic for Short
+if in_short_position
+    bars_in_trade += 1
+    profit = entry_price - close
+    
+    // Activate trailing stop when profit threshold reached
+    if use_trailing_stop and profit >= (atr * trailing_activation_atr)
+        new_trailing = close + (atr * trailing_distance_atr)
+        trailing_stop := na(trailing_stop) ? new_trailing : math.min(trailing_stop, new_trailing)
+    
+    // Exit conditions
+    hit_stop = close >= (use_trailing_stop and not na(trailing_stop) ? trailing_stop : stop_loss)
+    hit_target = close <= take_profit
+    
+    if hit_stop or hit_target
+        in_short_position := false
+        entry_price := na
+        stop_loss := na
+        take_profit := na
+        trailing_stop := na
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🎨 PLOTTING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Signal Line
+plot(show_signal_line ? xSignalLine : na, 'Signal Line', color=color_signal_line, linewidth=2, style=plot.style_line)
+
+// Trend Filter Line
+plot(show_trend_filter_line and enable_trend_filter and trend_filter_type != 'Supertrend' ? ema_trend : na, 
+     'EMA Trend', color=color_trend_line, linewidth=2, style=plot.style_line)
+plot(show_trend_filter_line and enable_trend_filter and trend_filter_type == 'Supertrend' ? supertrend : na, 
+     'Supertrend', color=direction < 0 ? #00ff00 : #ff0000, linewidth=2, style=plot.style_line)
+
+// Entry Signals
+plotshape(show_signals and long_signal, title='Long Entry', text='LONG\n⬆', 
+          style=shape.labelup, location=location.belowbar, 
+          color=color_long, textcolor=color.white, size=size.normal)
+
+plotshape(show_signals and short_signal, title='Short Entry', text='SHORT\n⬇', 
+          style=shape.labeldown, location=location.abovebar, 
+          color=color_short, textcolor=color.white, size=size.normal)
+
+// Stop Loss & Take Profit Lines
+var line sl_line = na
+var line tp_line = na
+var line ts_line = na
+
+if show_risk_levels
+    // Delete old lines
+    if not na(sl_line)
+        line.delete(sl_line)
+    if not na(tp_line)
+        line.delete(tp_line)
+    if not na(ts_line)
+        line.delete(ts_line)
+    
+    // Draw new lines for active positions
+    if in_long_position or in_short_position
+        current_sl = use_trailing_stop and not na(trailing_stop) ? trailing_stop : stop_loss
+        
+        sl_line := line.new(bar_index - bars_in_trade, current_sl, bar_index + 10, current_sl, 
+                           color=color_short, width=2, style=line.style_dashed, 
+                           extend=extend.none)
+        
+        tp_line := line.new(bar_index - bars_in_trade, take_profit, bar_index + 10, take_profit, 
+                           color=color_long, width=2, style=line.style_dashed, 
+                           extend=extend.none)
+        
+        // Show trailing stop separately if active
+        if use_trailing_stop and not na(trailing_stop)
+            ts_line := line.new(bar_index - bars_in_trade, trailing_stop, bar_index + 10, trailing_stop, 
+                               color=color.orange, width=2, style=line.style_dotted, 
+                               extend=extend.none)
+
+// Labels for SL/TP
+var label sl_label = na
+var label tp_label = na
+var label entry_label = na
+
+if show_risk_levels and (long_signal or short_signal)
+    // Delete old labels
+    if not na(sl_label)
+        label.delete(sl_label)
+    if not na(tp_label)
+        label.delete(tp_label)
+    if not na(entry_label)
+        label.delete(entry_label)
+    
+    // Create new labels
+    if long_signal
+        entry_label := label.new(bar_index, entry_price, 
+                               text='Entry: ' + str.tostring(entry_price, format.mintick), 
+                               color=color.new(color_long, 80), textcolor=color.white, 
+                               style=label.style_label_left, size=size.small)
+        
+        sl_label := label.new(bar_index, stop_loss, 
+                            text='SL: ' + str.tostring(stop_loss, format.mintick), 
+                            color=color.new(color_short, 80), textcolor=color.white, 
+                            style=label.style_label_left, size=size.small)
+        
+        tp_label := label.new(bar_index, take_profit, 
+                            text='TP: ' + str.tostring(take_profit, format.mintick) + ' (RR:' + str.tostring(risk_reward_ratio, '#.#') + ')', 
+                            color=color.new(color_long, 80), textcolor=color.white, 
+                            style=label.style_label_left, size=size.small)
+    
+    if short_signal
+        entry_label := label.new(bar_index, entry_price, 
+                               text='Entry: ' + str.tostring(entry_price, format.mintick), 
+                               color=color.new(color_short, 80), textcolor=color.white, 
+                               style=label.style_label_left, size=size.small)
+        
+        sl_label := label.new(bar_index, stop_loss, 
+                            text='SL: ' + str.tostring(stop_loss, format.mintick), 
+                            color=color.new(color_short, 80), textcolor=color.white, 
+                            style=label.style_label_left, size=size.small)
+        
+        tp_label := label.new(bar_index, take_profit, 
+                            text='TP: ' + str.tostring(take_profit, format.mintick) + ' (RR:' + str.tostring(risk_reward_ratio, '#.#') + ')', 
+                            color=color.new(color_long, 80), textcolor=color.white, 
+                            style=label.style_label_left, size=size.small)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📊 DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var table dashboard = table.new(position.top_right, 2, 10, border_width=2, 
+                                border_color=color.gray, frame_color=color.gray, frame_width=2)
+
+if show_dashboard and barstate.islast
+    // Header
+    table.cell(dashboard, 0, 0, 'Signal System V6 Pro', bgcolor=#1a1a2e, text_color=color.white, 
+              text_size=size.normal, text_halign=text.align_center)
+    table.merge_cells(dashboard, 0, 0, 1, 0)
+    
+    // Market Status
+    trend_text = is_uptrend ? '🟢 UPTREND' : is_downtrend ? '🔴 DOWNTREND' : '⚪ SIDEWAYS'
+    trend_color = is_uptrend ? color.new(color_long, 70) : is_downtrend ? color.new(color_short, 70) : color.new(color.gray, 70)
+    
+    table.cell(dashboard, 0, 1, 'Market Status:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+    table.cell(dashboard, 1, 1, trend_text, bgcolor=trend_color, text_color=color.white, text_size=size.small)
+    
+    // ADX
+    adx_status = adx > adx_threshold * 1.5 ? '🔥 STRONG' : adx > adx_threshold ? '✅ TRENDING' : '⚠️ WEAK'
+    adx_color = adx > adx_threshold * 1.5 ? color.new(color_long, 70) : adx > adx_threshold ? color.new(color.orange, 70) : color.new(color.gray, 70)
+    
+    table.cell(dashboard, 0, 2, 'ADX (' + str.tostring(math.round(adx, 1)) + '):', 
+              bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+    table.cell(dashboard, 1, 2, adx_status, bgcolor=adx_color, text_color=color.white, text_size=size.small)
+    
+    // Volatility
+    vol_status = volatility_ratio > 2 ? '⚠️ HIGH' : volatility_ratio > 0.5 ? '✅ NORMAL' : '📉 LOW'
+    vol_color = volatility_ratio > 2 ? color.new(color_short, 70) : volatility_ratio > 0.5 ? color.new(color_long, 70) : color.new(color.gray, 70)
+    
+    table.cell(dashboard, 0, 3, 'Volatility:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+    table.cell(dashboard, 1, 3, vol_status, bgcolor=vol_color, text_color=color.white, text_size=size.small)
+    
+    // Signal Status
+    signal_text = long_signal ? '🚀 LONG SIGNAL!' : short_signal ? '📉 SHORT SIGNAL!' : in_long_position ? '📈 In Long' : in_short_position ? '📉 In Short' : '⏸️ No Signal'
+    signal_color = long_signal or in_long_position ? color.new(color_long, 50) : short_signal or in_short_position ? color.new(color_short, 50) : color.new(color.gray, 70)
+    
+    table.cell(dashboard, 0, 4, 'Status:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+    table.cell(dashboard, 1, 4, signal_text, bgcolor=signal_color, text_color=color.white, text_size=size.small)
+    
+    // Position Info (if in trade)
+    if in_long_position or in_short_position
+        current_pnl = in_long_position ? (close - entry_price) : (entry_price - close)
+        pnl_percent = (current_pnl / entry_price) * 100
+        pnl_text = str.tostring(pnl_percent, '#.##') + '%'
+        pnl_color = current_pnl > 0 ? color.new(color_long, 50) : color.new(color_short, 50)
+        
+        table.cell(dashboard, 0, 5, 'P&L:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+        table.cell(dashboard, 1, 5, pnl_text, bgcolor=pnl_color, text_color=color.white, text_size=size.small)
+        
+        // Risk/Reward
+        table.cell(dashboard, 0, 6, 'Risk/Reward:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+        table.cell(dashboard, 1, 6, '1:' + str.tostring(risk_reward_ratio, '#.#'), 
+                  bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+        
+        // Trailing Status
+        if use_trailing_stop
+            trailing_status = not na(trailing_stop) ? '✅ ACTIVE' : '⏳ Waiting'
+            trailing_color = not na(trailing_stop) ? color.new(color_long, 70) : color.new(color.gray, 70)
+            
+            table.cell(dashboard, 0, 7, 'Trailing Stop:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+            table.cell(dashboard, 1, 7, trailing_status, bgcolor=trailing_color, text_color=color.white, text_size=size.small)
+    else
+        // Filters Status
+        table.cell(dashboard, 0, 5, 'Trend Filter:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+        table.cell(dashboard, 1, 5, trend_ok_long or trend_ok_short ? '✅ OK' : '❌ NO', 
+                  bgcolor=trend_ok_long or trend_ok_short ? color.new(color_long, 70) : color.new(color_short, 70), 
+                  text_color=color.white, text_size=size.small)
+        
+        table.cell(dashboard, 0, 6, 'ADX Filter:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+        table.cell(dashboard, 1, 6, adx_ok ? '✅ OK' : '❌ NO', 
+                  bgcolor=adx_ok ? color.new(color_long, 70) : color.new(color_short, 70), 
+                  text_color=color.white, text_size=size.small)
+        
+        table.cell(dashboard, 0, 7, 'Vol Filter:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+        table.cell(dashboard, 1, 7, vol_ok ? '✅ OK' : '❌ NO', 
+                  bgcolor=vol_ok ? color.new(color_long, 70) : color.new(color_short, 70), 
+                  text_color=color.white, text_size=size.small)
+    
+    // ATR Info
+    table.cell(dashboard, 0, 8, 'ATR:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+    table.cell(dashboard, 1, 8, str.tostring(atr, format.mintick), 
+              bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+    
+    // Settings Summary
+    filters_count = (enable_trend_filter ? 1 : 0) + (enable_adx_filter ? 1 : 0) + (enable_volatility_filter ? 1 : 0)
+    table.cell(dashboard, 0, 9, 'Active Filters:', bgcolor=#2e2e42, text_color=color.white, text_size=size.small)
+    table.cell(dashboard, 1, 9, str.tostring(filters_count) + '/3', 
+              bgcolor=color.new(color.purple, 70), text_color=color.white, text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔔 ALERTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+alertcondition(long_signal, 
+              title='🚀 Long Signal', 
+              message='🚀 LONG SIGNAL on {{ticker}}\n' + 
+                      'Price: {{close}}\n' + 
+                      'Stop Loss: ' + str.tostring(stop_loss, format.mintick) + '\n' + 
+                      'Take Profit: ' + str.tostring(take_profit, format.mintick) + '\n' + 
+                      'Risk/Reward: 1:' + str.tostring(risk_reward_ratio, '#.#'))
+
+alertcondition(short_signal, 
+              title='📉 Short Signal', 
+              message='📉 SHORT SIGNAL on {{ticker}}\n' + 
+                      'Price: {{close}}\n' + 
+                      'Stop Loss: ' + str.tostring(stop_loss, format.mintick) + '\n' + 
+                      'Take Profit: ' + str.tostring(take_profit, format.mintick) + '\n' + 
+                      'Risk/Reward: 1:' + str.tostring(risk_reward_ratio, '#.#'))
+
+// Stop Loss Hit
+alertcondition(in_long_position and close <= stop_loss, 
+              title='🛑 Long Stop Loss Hit', 
+              message='🛑 Long Stop Loss Hit on {{ticker}}\nExit Price: {{close}}')
+
+alertcondition(in_short_position and close >= stop_loss, 
+              title='🛑 Short Stop Loss Hit', 
+              message='🛑 Short Stop Loss Hit on {{ticker}}\nExit Price: {{close}}')
+
+// Take Profit Hit
+alertcondition(in_long_position and close >= take_profit, 
+              title='🎯 Long Take Profit Hit', 
+              message='🎯 Long Take Profit Hit on {{ticker}}\nExit Price: {{close}}')
+
+alertcondition(in_short_position and close <= take_profit, 
+              title='🎯 Short Take Profit Hit', 
+              message='🎯 Short Take Profit Hit on {{ticker}}\nExit Price: {{close}}')
+
+// Trailing Stop Activated
+alertcondition(use_trailing_stop and in_long_position and not na(trailing_stop) and na(trailing_stop[1]), 
+              title='🔄 Long Trailing Stop Activated', 
+              message='🔄 Long Trailing Stop Activated on {{ticker}}\nTrailing at: ' + str.tostring(trailing_stop, format.mintick))
+
+alertcondition(use_trailing_stop and in_short_position and not na(trailing_stop) and na(trailing_stop[1]), 
+              title='🔄 Short Trailing Stop Activated', 
+              message='🔄 Short Trailing Stop Activated on {{ticker}}\nTrailing at: ' + str.tostring(trailing_stop, format.mintick))
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📝 COMMENTS & DOCUMENTATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════════════════
+// 📚 HƯỚNG DẪN SỬ DỤNG
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// 1. CÀI ĐẶT CƠ BẢN:
+//    - Signal Sensitivity: 5 (default) - Giảm để nhiều tín hiệu, tăng để ít tín hiệu
+//    - Volatility Period: 10 (default)
+//
+// 2. BỘ LỌC TREND:
+//    - Bật "Enable Trend Filter" để chỉ giao dịch theo xu hướng
+//    - Chọn EMA (nhanh), Supertrend (chính xác hơn), hoặc Both (an toàn nhất)
+//
+// 3. BỘ LỌC ADX:
+//    - Bật để tránh giao dịch trong thị trường sideway
+//    - ADX Threshold: 20 (default) - Tăng lên nếu muốn chỉ trade trend mạnh
+//
+// 4. BỘ LỌC VOLATILITY:
+//    - Tránh whipsaw khi volatility quá cao (> 3.0)
+//    - Tránh tín hiệu khi volatility quá thấp (< 0.5)
+//
+// 5. QUẢN LÝ RỦI RO:
+//    - Stop Loss: 2 ATR (default)
+//    - Take Profit: 4 ATR (default) = Risk/Reward 1:2
+//    - Trailing Stop: Tự động bảo vệ lợi nhuận sau khi đạt 2 ATR profit
+//
+// 6. CÁCH ĐỌC DASHBOARD:
+//    - Market Status: Trend hiện tại (Uptrend/Downtrend/Sideways)
+//    - ADX: Độ mạnh của trend (Strong/Trending/Weak)
+//    - Volatility: Mức độ biến động (High/Normal/Low)
+//    - Status: Trạng thái tín hiệu hiện tại
+//    - P&L: Lãi/lỗ của lệnh đang mở (nếu có)
+//    - Trailing Stop: Trạng thái trailing stop
+//
+// 7. ALERTS:
+//    - Thiết lập alert cho "Long Signal" và "Short Signal"
+//    - Alert sẽ bao gồm Entry, SL, TP và Risk/Reward ratio
+//
+// ════════════════════════════════════════════════════════════════════════════════
+// ✅ CẢI TIẾN SO VỚI PHIÊN BẢN GỐC
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// ❌ VẤN ĐỀ 1: "Tín hiệu muộn trong sideway"
+// ✅ GIẢI PHÁP: ADX Filter - Chỉ trade khi ADX > threshold (trending market)
+//
+// ❌ VẤN ĐỀ 2: "Whipsaw trong biến động cao"
+// ✅ GIẢI PHÁP: Volatility Filter - Tránh trade khi ATR ratio quá cao/thấp
+//
+// ❌ VẤN ĐỀ 3: "Không có bộ lọc trend"
+// ✅ GIẢI PHÁP: Trend Filter với 3 options (EMA/Supertrend/Both)
+//
+// ❌ VẤN ĐỀ 4: "Risk/Reward không rõ ràng"
+// ✅ GIẢI PHÁP: 
+//    - ATR-based Stop Loss & Take Profit tự động
+//    - Hiển thị trực quan trên chart
+//    - Risk/Reward ratio có thể tùy chỉnh
+//    - Trailing Stop để bảo vệ lợi nhuận
+//    - Dashboard hiển thị đầy đủ thông tin
+//
+// ════════════════════════════════════════════════════════════════════════════════
+// 🎯 KHUYẾN NGHỊ TRADING
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// 📈 CHO TRENDING MARKET:
+//    - Enable all filters
+//    - ADX threshold: 20-25
+//    - Trend Filter: Both (EMA + Supertrend)
+//
+// 📊 CHO VOLATILE MARKET:
+//    - Tăng Sensitivity lên 6-7
+//    - Tăng Stop Loss lên 2.5-3 ATR
+//    - Max Volatility: 2.5
+//
+// 💤 CHO RANGING MARKET:
+//    - Disable Trend Filter
+//    - ADX threshold: 15
+//    - Giảm Take Profit xuống 3 ATR
+//
+// ════════════════════════════════════════════════════════════════════════════════
